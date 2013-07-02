@@ -66,6 +66,7 @@ long long nel;
 unsigned theway = 0;
 struct node *thenodes[100000];
 unsigned thenodecount = 0;
+long long seq = 0;
 
 char tags[50000] = "";
 
@@ -97,6 +98,10 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 		} else {
 			fwrite(&n, sizeof(struct node), 1, tmp);
 			prevnode = n;
+		}
+
+		if (seq++ % 100000 == 0) {
+			fprintf(stderr, "node %u  \r", n.id);
 		}
 	} else if (strcmp(element, "way") == 0) {
 		if (map == NULL) {
