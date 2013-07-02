@@ -185,16 +185,24 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 	}
 }
 
+#define MAX 10
+
 static void XMLCALL end(void *data, const char *el) {
 	if (strcmp(el, "way") == 0) {
-		int i;
-		for (i = 0; i < thenodecount; i++) {
-			printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
-					   thenodes[i]->lon / 1000000.0);
+		int x;
+		for (x = 0; x < thenodecount; x += MAX - 1) {
+			if (x + 1 < thenodecount) {
+				int i;
+				for (i = x; i < x + MAX && i < thenodecount; i++) {
+					printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
+							   thenodes[i]->lon / 1000000.0);
+				}
+
+				printf("// id=%u", theway);
+				printf("%s\n", tags);
+			}
 		}
 
-		printf("// id=%u", theway);
-		printf("%s\n", tags);
 		theway = 0;
 	}
 }
