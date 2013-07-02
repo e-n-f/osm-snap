@@ -10,7 +10,7 @@
 #include <math.h>
 #include <time.h>
 
-#define TMPFILE "/tmp/osm-tmp-node"
+#define TMPFILE "/tmp/osm-tmp-node2"
 
 struct node {
 	unsigned id; // still just over 2^31
@@ -47,13 +47,6 @@ int nodecmp(const void *v1, const void *v2) {
 		return -1;
 	}
 	if (n1->id > n2->id) {
-		return 1;
-	}
-
-	if (n1->date < n2->date) {
-		return -1;
-	}
-	if (n1->date > n2->date) {
 		return 1;
 	}
 
@@ -134,7 +127,7 @@ time_t parsedate(const char *date) {
 		&tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 		&tm.tm_hour, &tm.tm_min, &tm.tm_sec) == 6) {
 
-		int day = tm.tm_mday + (31 * tm.tm_mon) + (372 * (tm.tm_year - 2000));
+		int day = tm.tm_mday + (31 * (tm.tm_mon - 1)) + (372 * (tm.tm_year - 2000));
 		return (day * 86400) +
 			3600 * tm.tm_hour + 60 * tm.tm_min + tm.tm_sec;
 	} else {
@@ -143,11 +136,28 @@ time_t parsedate(const char *date) {
 	}
 }
 
+char *getdate(time_t t) {
+	static char s[] = "2001-01-01 11:11:11";
+
+	int hour = t % 86400;
+	int day = t / 86400;
+
+	int year = day / 372 + 2000;
+	int mon = (day % 372) / 31 + 1;
+	int mday = day % 31;
+
+	int sec = hour % 60;
+	int min = (hour % 3600) / 60;
+	int hr = hour / 3600;
+
+	sprintf(s, "%04d-%02d-%02d %02d:%02d:%02d", year, mon, mday, hr, min, sec);
+	return s;
+}
+
 static void XMLCALL start(void *data, const char *element, const char **attribute) {
 	if (strcmp(element, "node") == 0) {
 		struct node n;
 		int i;
-		int visible = 1;
 		n.id = 0;
 		n.date = 0;
 		n.lat = INT_MIN;
@@ -162,20 +172,11 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 				n.lat = atof(attribute[i + 1]) * 1000000.0;
 			} else if (strcmp(attribute[i], "lon") == 0) {
 				n.lon = atof(attribute[i + 1]) * 1000000.0;
-			} else if (strcmp(attribute[i], "visible") == 0) {
-				visible = strcmp(attribute[i + 1], "false");
 			}
 		}
 
-#if 0
-		if (!visible) {
-			n.lat = INT_MIN;
-			n.lon = INT_MIN;
-		}
-#endif
-
 		if (n.id > seq + 10000) {
-			fprintf(stderr, "%u\n", n.id);
+			fprintf(stderr, "%u\r", n.id);
 			seq = n.id;
 		}
 
@@ -308,12 +309,28 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 static void XMLCALL end(void *data, const char *el) {
 	if (strcmp(el, "way") == 0) {
 		printf("%u ", theway);
-		printf("%s ", thetimestamp);
-		printf("%u ", thedate);
-		printf("%s ", theversion);
+		//printf("%s ", thetimestamp);
 
 		double sum = 0;
+		int maxdate = 0;
 		int i;
+
+		for (i = 0; i < thenodecount; i++) {
+			if (thenodes[i]->date > maxdate) {
+				maxdate = thenodes[i]->date;
+			}
+		}
+
+		if (thedate > maxdate) {
+			printf("%s ", getdate(thedate));
+		} else {
+			printf("%s ", getdate(maxdate));
+		}
+
+		printf("%s ", getdate(thedate));
+		printf("%s ", getdate(maxdate));
+		printf("%s ", theversion);
+
 		for (i = 1; i < thenodecount; i++) {
 			sum += dist(thenodes[i - 1]->lat / 1000000.0,
 				    thenodes[i - 1]->lon / 1000000.0,
@@ -322,18 +339,6 @@ static void XMLCALL end(void *data, const char *el) {
 		}
 
 		printf("%.3f ", sum);
-
-		if (bogus) {
-			printf("0/bogus ");
-		} else if (theway == oldway) {
-			printf("%.3f ", sum - olddist);
-			olddist = sum;
-			oldway = theway;
-		} else {
-			printf("%.3f ", sum);
-			olddist = sum;
-			oldway = theway;
-		}
 
 		for (i = 0; i < thenodecount; i++) {
 			printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
@@ -349,21 +354,6 @@ static void XMLCALL end(void *data, const char *el) {
 		free(theuid); theuid = NULL;
 		free(thetimestamp); thetimestamp = NULL;
 		free(theversion); theversion = NULL;
-
-#if 0
-		for (i = 1; i < thenodecount; i++) {
-			printf("dist: %lf,%lf to %lf,%lf ",
-					   thenodes[i - 1]->lat / 1000000.0,
-					   thenodes[i - 1]->lon / 1000000.0,
-					   thenodes[i]->lat / 1000000.0,
-					   thenodes[i]->lon / 1000000.0);
-		
-			printf("%.6f\n", dist(thenodes[i - 1]->lat / 1000000.0,
-				    thenodes[i - 1]->lon / 1000000.0,
-				    thenodes[i    ]->lat / 1000000.0,
-				    thenodes[i    ]->lon / 1000000.0));
-		}
-#endif
 	}
 }
 
