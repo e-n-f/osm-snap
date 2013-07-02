@@ -246,5 +246,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	XML_ParserFree(p);
+	unlink(tmpfname);
 	return 0;
 }
