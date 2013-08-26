@@ -185,15 +185,15 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 	}
 }
 
-#define MAX 10
+int max = 10;
 
 static void XMLCALL end(void *data, const char *el) {
 	if (strcmp(el, "way") == 0) {
 		int x;
-		for (x = 0; x < thenodecount; x += MAX - 1) {
+		for (x = 0; x < thenodecount; x += max - 1) {
 			if (x + 1 < thenodecount) {
 				int i;
-				for (i = x; i < x + MAX && i < thenodecount; i++) {
+				for (i = x; i < x + max && i < thenodecount; i++) {
 					printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
 							   thenodes[i]->lon / 1000000.0);
 				}
@@ -208,6 +208,25 @@ static void XMLCALL end(void *data, const char *el) {
 }
 
 int main(int argc, char *argv[]) {
+	int i;
+	extern int optind;
+	extern char *optarg;
+
+	while ((i = getopt(argc, argv, "s:")) != -1) {
+		switch (i) {
+		case 's':
+			max = atoi(optarg);
+			if (max == 0) {
+				max = INT_MAX / 2;
+			}
+			break;
+
+		default:
+			fprintf(stderr, "Usage: %s [-s num]\n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
+	
 	if (tmpnam(tmpfname) == NULL) {
 		perror(tmpfname);
 		exit(EXIT_FAILURE);
