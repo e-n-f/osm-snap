@@ -74,6 +74,8 @@ char tags[50000] = "";
 
 struct node curnode;
 
+int done = 0;
+
 static void XMLCALL start(void *data, const char *element, const char **attribute) {
 	if (strcmp(element, "node") == 0) {
 		int i;
@@ -179,6 +181,8 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 				curnode.addr = 1;
 			}
 		}
+	} else if (strcmp(element, "relation") == 0) {
+		done = 1;
 	}
 }
 
@@ -242,6 +246,7 @@ static void XMLCALL end(void *data, const char *el) {
 	}
 }
 
+
 int main(int argc, char *argv[]) {
 	int i;
 	extern int optind;
@@ -281,7 +286,6 @@ int main(int argc, char *argv[]) {
 
 	XML_SetElementHandler(p, start, end);
 
-	int done = 0;
 	while (!done) {
 		int len;
 		char Buff[BUFFSIZE];
