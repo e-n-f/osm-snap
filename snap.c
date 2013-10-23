@@ -14,6 +14,7 @@ struct node {
 	unsigned id; // still just over 2^31
 	int lat;
 	int lon;
+	int addr;
 };
 
 int nodecmp(const void *v1, const void *v2) {
@@ -64,44 +65,31 @@ void *map = NULL;
 long long nel;
 
 unsigned theway = 0;
+unsigned thenode = 0;
 struct node *thenodes[100000];
 unsigned thenodecount = 0;
 long long seq = 0;
 
 char tags[50000] = "";
 
-static void XMLCALL start(void *data, const char *element, const char **attribute) {
-	static struct node prevnode = { 0, 0, 0 };
+struct node curnode;
 
+static void XMLCALL start(void *data, const char *element, const char **attribute) {
 	if (strcmp(element, "node") == 0) {
-		struct node n;
 		int i;
-		n.id = 0;
-		n.lat = INT_MIN;
-		n.lon = INT_MIN;
+		curnode.id = 0;
+		curnode.lat = INT_MIN;
+		curnode.lon = INT_MIN;
+		curnode.addr = 0;
 
 		for (i = 0; attribute[i] != NULL; i += 2) {
 			if (strcmp(attribute[i], "id") == 0) {
-				n.id = atoi(attribute[i + 1]);
+				curnode.id = atoi(attribute[i + 1]);
 			} else if (strcmp(attribute[i], "lat") == 0) {
-				n.lat = atof(attribute[i + 1]) * 1000000.0;
+				curnode.lat = atof(attribute[i + 1]) * 1000000.0;
 			} else if (strcmp(attribute[i], "lon") == 0) {
-				n.lon = atof(attribute[i + 1]) * 1000000.0;
+				curnode.lon = atof(attribute[i + 1]) * 1000000.0;
 			}
-		}
-
-		if (nodecmp(&n, &prevnode) < 0) {
-			fprintf(stderr, "node went backwards (%d): ",
-				nodecmp(&n, &prevnode));
-			fprintf(stderr, "%u %d %d to ", prevnode.id, prevnode.lat, prevnode.lon);
-			fprintf(stderr, "%u %d %d\n", n.id, n.lat, n.lon);
-		} else {
-			fwrite(&n, sizeof(struct node), 1, tmp);
-			prevnode = n;
-		}
-
-		if (seq++ % 100000 == 0) {
-			fprintf(stderr, "node %u  \r", n.id);
 		}
 	} else if (strcmp(element, "way") == 0) {
 		if (map == NULL) {
@@ -139,6 +127,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 		for (i = 0; attribute[i] != NULL; i += 2) {
 			if (strcmp(attribute[i], "id") == 0) {
 				theway = atoi(attribute[i + 1]);
+				thenode = 0;
 			}
 		}
 	} else if (strcmp(element, "nd") == 0) {
@@ -163,7 +152,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 			fprintf(stderr, "FAIL looked for %u found %u\n", n.id, find->id);
 		}
 	} else if (strcmp(element, "tag") == 0) {
-		if (theway != 0) {
+		{
 			const char *key = "";
 			const char *value = "";
 
@@ -177,33 +166,67 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 				}
 			}
 
-			int n = strlen(tags);
-			if (n + strlen(key) + strlen(value) + 5 < sizeof(tags)) {
-				sprintf(tags + n, ";%s=%s", key, value);
+			if (theway != 0) {
+				int n = strlen(tags);
+				if (n + strlen(key) + strlen(value) + 5 < sizeof(tags)) {
+					sprintf(tags + n, ";%s=%s", key, value);
+				}
+			}
+
+			if (strcmp(key, "addr:housenumber") == 0) {
+				printf("%lf,%lf address %u\n", curnode.lat / 1000000.0, curnode.lon / 1000000.0, curnode.id);
+
+				curnode.addr = 1;
 			}
 		}
 	}
 }
 
-int max = 10;
+int max = INT_MAX / 2;
 
 static void XMLCALL end(void *data, const char *el) {
+	static struct node prevnode = { 0, 0, 0 };
+
 	if (strcmp(el, "way") == 0) {
 		int x;
-		for (x = 0; x < thenodecount; x += max - 1) {
-			if (x + 1 < thenodecount) {
-				int i;
-				for (i = x; i < x + max && i < thenodecount; i++) {
-					printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
-							   thenodes[i]->lon / 1000000.0);
-				}
+		if (strstr(tags, ";building=") != NULL) {
+			for (x = 0; x < thenodecount; x += max - 1) {
+				if (x + 1 < thenodecount) {
+					int i;
+					for (i = x; i < x + max && i < thenodecount; i++) {
+						printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
+								   thenodes[i]->lon / 1000000.0);
+								   
+					}
 
-				printf("// id=%u", theway);
-				printf("%s\n", tags);
+					printf(": id=%u", theway);
+
+					for (i = x; i < x + max && i < thenodecount; i++) {
+						if (thenodes[i]->addr) {
+							printf(";nodeaddr=%u", thenodes[i]->id);
+						}
+					}
+
+					printf("%s\n", tags);
+				}
 			}
 		}
 
 		theway = 0;
+	} else if (strcmp(el, "node") == 0) {
+		if (nodecmp(&curnode, &prevnode) < 0) {
+			fprintf(stderr, "node went backwards (%d): ",
+				nodecmp(&curnode, &prevnode));
+			fprintf(stderr, "%u %d %d to ", prevnode.id, prevnode.lat, prevnode.lon);
+			fprintf(stderr, "%u %d %d\n", curnode.id, curnode.lat, curnode.lon);
+		} else {
+			fwrite(&curnode, sizeof(struct node), 1, tmp);
+			prevnode = curnode;
+		}
+
+		if (seq++ % 100000 == 0) {
+			fprintf(stderr, "node %u  \r", curnode.id);
+		}
 	}
 }
 
