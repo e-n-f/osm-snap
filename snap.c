@@ -61,7 +61,7 @@ void *search(const void *key, const void *base, size_t nel, size_t width,
 
 char tmpfname[L_tmpnam];
 FILE *tmp;
-void *map = NULL;
+struct node *map = NULL;
 long long nel;
 
 unsigned theway = 0;
@@ -95,7 +95,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 		if (map == NULL) {
 			fflush(tmp);
 
-			int fd = open(tmpfname, O_RDONLY);
+			int fd = open(tmpfname, O_RDWR);
 			if (fd < 0) {
 				perror(tmpfname);
 				exit(EXIT_FAILURE);
@@ -111,7 +111,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 
 			fprintf(stderr, "%d, %lld\n", fd, (long long) st.st_size);
 
-			map = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+			map = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 			if (map == MAP_FAILED) {
 				perror("mmap");
 				exit(EXIT_FAILURE);
@@ -174,7 +174,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 			}
 
 			if (strcmp(key, "addr:housenumber") == 0) {
-				printf("%lf,%lf address %u\n", curnode.lat / 1000000.0, curnode.lon / 1000000.0, curnode.id);
+				// printf("%lf,%lf address %u\n", curnode.lat / 1000000.0, curnode.lon / 1000000.0, curnode.id);
 
 				curnode.addr = 1;
 			}
@@ -204,6 +204,7 @@ static void XMLCALL end(void *data, const char *el) {
 					for (i = x; i < x + max && i < thenodecount; i++) {
 						if (thenodes[i]->addr) {
 							printf(";nodeaddr=%u", thenodes[i]->id);
+							thenodes[i]->addr = 0;
 						}
 					}
 
@@ -284,6 +285,12 @@ int main(int argc, char *argv[]) {
 		if (XML_Parse(p, Buff, len, done) == XML_STATUS_ERROR) {
 			fprintf(stderr, "Parse error at line %lld:\n%s\n", (long long) XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
 			exit(EXIT_FAILURE);
+		}
+	}
+
+	for (i = 0; i < nel; i++) {
+		if (map[i].addr == 1) {
+			printf("%lf,%lf address %u\n", map[i].lat / 1000000.0, map[i].lon / 1000000.0, map[i].id);
 		}
 	}
 
