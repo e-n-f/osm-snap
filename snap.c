@@ -193,13 +193,7 @@ static void XMLCALL end(void *data, const char *el) {
 			for (x = 0; x < thenodecount; x += max - 1) {
 				if (x + 1 < thenodecount) {
 					int i;
-					for (i = x; i < x + max && i < thenodecount; i++) {
-						printf("%lf,%lf ", thenodes[i]->lat / 1000000.0,
-								   thenodes[i]->lon / 1000000.0);
-								   
-					}
-
-					printf(": id=%u", theway);
+					printf("id=%u", theway);
 
 					for (i = x; i < x + max && i < thenodecount; i++) {
 						if (thenodes[i]->addr) {
@@ -208,7 +202,24 @@ static void XMLCALL end(void *data, const char *el) {
 						}
 					}
 
-					printf("%s\n", tags);
+					char *cp;
+					for (cp = tags; *cp; cp++) {
+						if (*cp == ':') {
+							putc('.', stdout);
+						} else {
+							putc(*cp, stdout);
+						}
+					}
+
+					printf(":");
+
+					for (i = x; i < x + max && i < thenodecount; i++) {
+						printf(" %lf,%lf", thenodes[i]->lat / 1000000.0,
+								   thenodes[i]->lon / 1000000.0);
+								   
+					}
+
+					printf("\n");
 				}
 			}
 		}
