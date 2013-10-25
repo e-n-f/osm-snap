@@ -9,7 +9,8 @@ to compile
 
     bzcat extract.osm.bz2 | ./snap > extract.snap
 
-to pull out all buildings and all nodes that have <code>addr:housenumber</code> tags.
+to pull out all buildings and all nodes that have <code>addr:housenumber</code> tags and that are
+not part of the outline of a building.
 
 Lines that are buildings will have the format
 
@@ -19,7 +20,8 @@ Lines that are nodes will look like
 
     48.905412,2.305988 address 2355920903
 
-Lines that are buildings with address nodes around the outside will contain "nodeaddr=...".
+Lines that are buildings with address nodes around the outside will contain "nodeaddr=..."
+and those nodes will not be included as node lines.
 Lines that are buildings that are directly tagged with addresses will contain "addr.housenumber=...".
 
     cat extract.snap | ./pnpoly > extract.pnpoly
