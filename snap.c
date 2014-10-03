@@ -11,7 +11,7 @@
 #include <time.h>
 
 struct node {
-	unsigned id; // still just over 2^31
+	long long id;
 	int lat;
 	int lon;
 };
@@ -63,7 +63,7 @@ FILE *tmp;
 void *map = NULL;
 long long nel;
 
-unsigned theway = 0;
+long long theway = 0;
 struct node *thenodes[100000];
 unsigned thenodecount = 0;
 long long seq = 0;
@@ -82,7 +82,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 
 		for (i = 0; attribute[i] != NULL; i += 2) {
 			if (strcmp(attribute[i], "id") == 0) {
-				n.id = atoi(attribute[i + 1]);
+				n.id = atoll(attribute[i + 1]);
 			} else if (strcmp(attribute[i], "lat") == 0) {
 				n.lat = atof(attribute[i + 1]) * 1000000.0;
 			} else if (strcmp(attribute[i], "lon") == 0) {
@@ -93,15 +93,15 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 		if (nodecmp(&n, &prevnode) < 0) {
 			fprintf(stderr, "node went backwards (%d): ",
 				nodecmp(&n, &prevnode));
-			fprintf(stderr, "%u %d %d to ", prevnode.id, prevnode.lat, prevnode.lon);
-			fprintf(stderr, "%u %d %d\n", n.id, n.lat, n.lon);
+			fprintf(stderr, "%lld %d %d to ", prevnode.id, prevnode.lat, prevnode.lon);
+			fprintf(stderr, "%lld %d %d\n", n.id, n.lat, n.lon);
 		} else {
 			fwrite(&n, sizeof(struct node), 1, tmp);
 			prevnode = n;
 		}
 
 		if (seq++ % 100000 == 0) {
-			fprintf(stderr, "node %u  \r", n.id);
+			fprintf(stderr, "node %lld  \r", n.id);
 		}
 	} else if (strcmp(element, "way") == 0) {
 		if (map == NULL) {
@@ -138,7 +138,7 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 
 		for (i = 0; attribute[i] != NULL; i += 2) {
 			if (strcmp(attribute[i], "id") == 0) {
-				theway = atoi(attribute[i + 1]);
+				theway = atoll(attribute[i + 1]);
 			}
 		}
 	} else if (strcmp(element, "nd") == 0) {
@@ -149,18 +149,18 @@ static void XMLCALL start(void *data, const char *element, const char **attribut
 
 		for (i = 0; attribute[i] != NULL; i += 2) {
 			if (strcmp(attribute[i], "ref") == 0) {
-				n.id = atoi(attribute[i + 1]);
+				n.id = atoll(attribute[i + 1]);
 			}
 		}
 
 		struct node *find = search(&n, map, nel, sizeof(struct node), nodecmp);
 
 		if (find->lat == INT_MIN) {
-			fprintf(stderr, "FAIL looked for %u found %u %d\n", n.id, find->id, find->lat);
+			fprintf(stderr, "FAIL looked for %lld found %lld %d\n", n.id, find->id, find->lat);
 		} else if (find->id == n.id) {
 			thenodes[thenodecount++] = find;
 		} else {
-			fprintf(stderr, "FAIL looked for %u found %u\n", n.id, find->id);
+			fprintf(stderr, "FAIL looked for %lld found %lld\n", n.id, find->id);
 		}
 	} else if (strcmp(element, "tag") == 0) {
 		if (theway != 0) {
@@ -198,7 +198,7 @@ static void XMLCALL end(void *data, const char *el) {
 							   thenodes[i]->lon / 1000000.0);
 				}
 
-				printf("// id=%u", theway);
+				printf("// id=%lld", theway);
 				printf("%s\n", tags);
 			}
 		}
