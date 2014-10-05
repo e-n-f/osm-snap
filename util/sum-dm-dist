@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+
+$pi = 4 * atan2(1, 1);
+$foot = .00000274;
+
+$total = 0;
+
+while (<>) {
+	chomp;
+
+	if (/;highway=([^;]*)/) {
+		$highway = $1;
+	} else {
+		next;
+	}
+
+	if (/ id=([0-9]+)/) {
+		if ($1 > $oid + 100000) {
+			$oid = $1;
+			print STDERR "way $oid\r";
+		}
+	}
+
+	if (s/^([0-9-.]+),([0-9-.]+) *//) {
+		$lat2 = $1;
+		$lon2 = $2;
+	} else {
+		print STDERR "fail on $_\n";
+	}
+
+	while (s/^([0-9-.]+),([0-9-.]+) *//) {
+		$lat1 = $lat2;
+		$lon1 = $lon2;
+
+		$lat2 = $1;
+		$lon2 = $2;
+
+		$rat = cos(($lat1 + $lat2) / 2 * $pi / 180);
+		$latd = ($lat1 - $lat2);
+		$lond = ($lon1 - $lon2) * $rat;
+
+		$d = sqrt($latd * $latd + $lond * $lond) / $foot;
+		$total{$highway} += $d;
+	}
+}
+
+for $highway (keys(%total)) {
+	printf("%.6f miles in $highway\n", $total{$highway} / 5280);
+}
